@@ -335,22 +335,63 @@ a:focus-visible {
 }
 
 .card__front {
+  --card-tone: #df5b3f;
+  --card-tint: #fff1eb;
+
   transform: rotateY(180deg);
-  border: 2px solid #ebe4d7;
-  color: var(--color-accent);
-  background: var(--color-surface);
+  border: 2px solid color-mix(in srgb, var(--card-tone) 32%, white);
+  background:
+    radial-gradient(circle, rgb(255 255 255 / 70%) 0 31%, transparent 32%),
+    var(--card-tint);
   box-shadow: 0 12px 28px rgb(43 37 27 / 12%);
 }
 
-.card__symbol {
-  font-family: Georgia, serif;
-  font-size: clamp(2rem, 7vw, 4.6rem);
-  line-height: 1;
+.card[data-pair-id="sun"] .card__front {
+  --card-tone: #d6901d;
+  --card-tint: #fff5cf;
+}
+
+.card[data-pair-id="mountain"] .card__front {
+  --card-tone: #3970a8;
+  --card-tint: #eaf4fb;
+}
+
+.card[data-pair-id="diamond"] .card__front {
+  --card-tone: #8c5cc4;
+  --card-tint: #f2eafa;
+}
+
+.card[data-pair-id="flower"] .card__front {
+  --card-tone: #d6507d;
+  --card-tint: #fceaf0;
+}
+
+.card[data-pair-id="moon"] .card__front {
+  --card-tone: #5263a9;
+  --card-tint: #eaedfa;
+}
+
+.card[data-pair-id="castle"] .card__front {
+  --card-tone: #477c69;
+  --card-tint: #e7f3ed;
+}
+
+.card[data-pair-id="spark"] .card__front {
+  --card-tone: #c36f2d;
+  --card-tint: #faeddf;
+}
+
+.card__image {
+  width: clamp(38px, 48%, 82px);
+  height: auto;
+  user-select: none;
 }
 
 .card.is-matched .card__front {
-  border-color: rgb(223 91 63 / 50%);
-  background: #fff8ed;
+  border-color: var(--card-tone);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--card-tone) 13%, transparent),
+    0 12px 28px rgb(43 37 27 / 12%);
 }
 
 .footer {

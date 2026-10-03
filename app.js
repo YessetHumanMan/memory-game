@@ -1,14 +1,14 @@
 'use strict';
 
 const CARD_DATA = [
-  { pairId: 'star', symbol: '✦', name: 'Star' },
-  { pairId: 'sun', symbol: '●', name: 'Sun' },
-  { pairId: 'mountain', symbol: '▲', name: 'Mountain' },
-  { pairId: 'diamond', symbol: '◆', name: 'Diamond' },
-  { pairId: 'flower', symbol: '✿', name: 'Flower' },
-  { pairId: 'moon', symbol: '☾', name: 'Moon' },
-  { pairId: 'castle', symbol: '♜', name: 'Castle' },
-  { pairId: 'spark', symbol: '❖', name: 'Spark' },
+  { pairId: 'star', image: './assets/cards/star.svg', name: 'Star' },
+  { pairId: 'sun', image: './assets/cards/sun.svg', name: 'Sun' },
+  { pairId: 'mountain', image: './assets/cards/mountain.svg', name: 'Mountain' },
+  { pairId: 'diamond', image: './assets/cards/diamond.svg', name: 'Diamond' },
+  { pairId: 'flower', image: './assets/cards/flower.svg', name: 'Flower' },
+  { pairId: 'moon', image: './assets/cards/moon.svg', name: 'Moon' },
+  { pairId: 'castle', image: './assets/cards/castle.svg', name: 'Castle' },
+  { pairId: 'spark', image: './assets/cards/spark.svg', name: 'Spark' },
 ];
 const TOTAL_PAIRS = CARD_DATA.length;
 const MISMATCH_DELAY = 1000;
@@ -170,6 +170,7 @@ function createCard(cardData, index) {
     attributes: {
       type: 'button',
       'data-card-id': cardData.id,
+      'data-pair-id': cardData.pairId,
       'aria-label': getCardLabel(cardData, index),
     },
   });
@@ -185,13 +186,17 @@ function createCard(cardData, index) {
   const front = createElement('span', {
     className: 'card__face card__front',
   });
-  const symbolElement = createElement('span', {
-    className: 'card__symbol',
-    text: cardData.symbol,
+  const cardImage = createElement('img', {
+    className: 'card__image',
+    attributes: {
+      src: cardData.image,
+      alt: '',
+      draggable: 'false',
+    },
   });
 
   back.append(backMark);
-  front.append(symbolElement);
+  front.append(cardImage);
   cardInner.append(back, front);
   card.append(cardInner);
 
