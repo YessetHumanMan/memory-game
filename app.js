@@ -1,7 +1,35 @@
 'use strict';
 
-const CARD_SYMBOLS = ['✦', '●', '▲', '◆', '✿', '☾', '♜', '❖'];
-const TOTAL_PAIRS = CARD_SYMBOLS.length;
+const CARD_DATA = [
+  { pairId: 'star', symbol: '✦', name: 'Star' },
+  { pairId: 'sun', symbol: '●', name: 'Sun' },
+  { pairId: 'mountain', symbol: '▲', name: 'Mountain' },
+  { pairId: 'diamond', symbol: '◆', name: 'Diamond' },
+  { pairId: 'flower', symbol: '✿', name: 'Flower' },
+  { pairId: 'moon', symbol: '☾', name: 'Moon' },
+  { pairId: 'castle', symbol: '♜', name: 'Castle' },
+  { pairId: 'spark', symbol: '❖', name: 'Spark' },
+];
+const TOTAL_PAIRS = CARD_DATA.length;
+const MISMATCH_DELAY = 1000;
+
+const state = {
+  cards: [],
+  firstCardId: null,
+  secondCardId: null,
+  moves: 0,
+  matchedPairs: 0,
+  isLocked: false,
+  isCompleted: false,
+  mismatchTimerId: null,
+};
+
+const elements = {
+  board: null,
+  moves: null,
+  pairs: null,
+  hint: null,
+};
 
 function createElement(tagName, options = {}) {
   const element = document.createElement(tagName);
@@ -125,13 +153,13 @@ function createGameIntro() {
   return intro;
 }
 
-function createCard(symbol, index) {
+function createCard(cardData, index) {
   const card = createElement('button', {
-    className: 'card',
+    className: `card${cardData.status === 'hidden' ? '' : ` is-${cardData.status}`}`,
     attributes: {
       type: 'button',
-      'data-card-index': String(index),
-      'aria-label': `Closed card ${index + 1}`,
+      'data-card-id': cardData.id,
+      'aria-label': getCardLabel(cardData, index),
     },
   });
   const cardInner = createElement('span', {
@@ -148,7 +176,7 @@ function createCard(symbol, index) {
   });
   const symbolElement = createElement('span', {
     className: 'card__symbol',
-    text: symbol,
+    text: cardData.symbol,
   });
 
   back.append(backMark);
@@ -173,17 +201,14 @@ function createBoard() {
   const hint = createElement('p', {
     className: 'board-shell__hint',
     text: 'Select two cards',
+    attributes: { id: 'board-hint', 'aria-live': 'polite' },
   });
   const board = createElement('div', {
     className: 'game-board',
     attributes: { id: 'game-board' },
   });
-  const cardValues = [...CARD_SYMBOLS, ...CARD_SYMBOLS];
 
-  cardValues.forEach((symbol, index) => {
-    board.append(createCard(symbol, index));
-  });
-
+  board.addEventListener('click', handleBoardClick);
   boardHeader.append(boardTitle, hint);
   boardSection.append(boardHeader, board);
 
@@ -213,4 +238,172 @@ function createApp() {
   document.body.append(app);
 }
 
-createApp();
+function shuffle(items) {
+  const shuffledItems = [...items];
+
+  for (let index = shuffledItems.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [shuffledItems[index], shuffledItems[randomIndex]] = [
+      shuffledItems[randomIndex],
+      shuffledItems[index],
+    ];
+  }
+
+  return shuffledItems;
+}
+
+function createDeck() {
+  const cards = CARD_DATA.flatMap((card) => [1, 2].map((copyNumber) => ({
+    ...card,
+    id: `${card.pairId}-${copyNumber}`,
+    status: 'hidden',
+  })));
+
+  return shuffle(cards);
+}
+
+function getCardLabel(card, index) {
+  if (card.status === 'hidden') {
+    return `Closed card ${index + 1}`;
+  }
+
+  if (card.status === 'matched') {
+    return `Matched card: ${card.name}`;
+  }
+
+  return `Open card: ${card.name}`;
+}
+
+function renderBoard() {
+  const cardElements = state.cards.map((card, index) => createCard(card, index));
+  elements.board.replaceChildren(...cardElements);
+}
+
+function updateCard(cardId) {
+  const cardIndex = state.cards.findIndex((card) => card.id === cardId);
+  const card = state.cards[cardIndex];
+  const cardElement = elements.board.querySelector(`[data-card-id="${cardId}"]`);
+
+  if (!card || !cardElement) {
+    return;
+  }
+
+  cardElement.classList.toggle('is-open', card.status === 'open');
+  cardElement.classList.toggle('is-matched', card.status === 'matched');
+  cardElement.setAttribute('aria-label', getCardLabel(card, cardIndex));
+}
+
+function updateCounters() {
+  elements.moves.textContent = String(state.moves);
+  elements.pairs.textContent = `${state.matchedPairs} / ${TOTAL_PAIRS}`;
+}
+
+function resetSelection() {
+  state.firstCardId = null;
+  state.secondCardId = null;
+}
+
+function handleMatchingCards(firstCard, secondCard) {
+  firstCard.status = 'matched';
+  secondCard.status = 'matched';
+  state.matchedPairs += 1;
+  state.isLocked = false;
+  resetSelection();
+  updateCard(firstCard.id);
+  updateCard(secondCard.id);
+  updateCounters();
+
+  if (state.matchedPairs === TOTAL_PAIRS) {
+    state.isCompleted = true;
+    elements.hint.textContent = 'All pairs found!';
+    return;
+  }
+
+  elements.hint.textContent = 'Pair found — keep going';
+}
+
+function handleMismatchedCards(firstCard, secondCard) {
+  elements.hint.textContent = 'Not a match — remember their places';
+
+  state.mismatchTimerId = window.setTimeout(() => {
+    firstCard.status = 'hidden';
+    secondCard.status = 'hidden';
+    updateCard(firstCard.id);
+    updateCard(secondCard.id);
+    resetSelection();
+    state.isLocked = false;
+    state.mismatchTimerId = null;
+    elements.hint.textContent = 'Select two cards';
+  }, MISMATCH_DELAY);
+}
+
+function selectCard(card) {
+  card.status = 'open';
+  updateCard(card.id);
+
+  if (state.firstCardId === null) {
+    state.firstCardId = card.id;
+    elements.hint.textContent = 'Now find its match';
+    return;
+  }
+
+  state.secondCardId = card.id;
+  state.moves += 1;
+  state.isLocked = true;
+  updateCounters();
+
+  const firstCard = state.cards.find(({ id }) => id === state.firstCardId);
+
+  if (firstCard.pairId === card.pairId) {
+    handleMatchingCards(firstCard, card);
+  } else {
+    handleMismatchedCards(firstCard, card);
+  }
+}
+
+function handleBoardClick(event) {
+  const cardElement = event.target.closest('.card');
+
+  if (!cardElement || !elements.board.contains(cardElement)) {
+    return;
+  }
+
+  const card = state.cards.find(({ id }) => id === cardElement.dataset.cardId);
+
+  if (
+    !card
+    || state.isLocked
+    || state.isCompleted
+    || card.status !== 'hidden'
+  ) {
+    return;
+  }
+
+  selectCard(card);
+}
+
+function startGame() {
+  state.cards = createDeck();
+  state.firstCardId = null;
+  state.secondCardId = null;
+  state.moves = 0;
+  state.matchedPairs = 0;
+  state.isLocked = false;
+  state.isCompleted = false;
+  state.mismatchTimerId = null;
+
+  renderBoard();
+  updateCounters();
+  elements.hint.textContent = 'Select two cards';
+}
+
+function initializeApp() {
+  createApp();
+  elements.board = document.getElementById('game-board');
+  elements.moves = document.getElementById('moves-value');
+  elements.pairs = document.getElementById('pairs-value');
+  elements.hint = document.getElementById('board-hint');
+  startGame();
+}
+
+initializeApp();
