@@ -34,6 +34,10 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+body.modal-open {
+  overflow: hidden;
+}
+
 button,
 a {
   -webkit-tap-highlight-color: transparent;
@@ -351,6 +355,101 @@ a:focus-visible {
   text-align: center;
 }
 
+.modal-overlay {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  overflow-y: auto;
+  padding: 24px;
+  place-items: center;
+  background: rgb(13 20 32 / 68%);
+  opacity: 0;
+  backdrop-filter: blur(7px);
+  transition: opacity 180ms ease;
+}
+
+.modal-overlay[hidden] {
+  display: none;
+}
+
+.modal-overlay.is-visible {
+  opacity: 1;
+}
+
+.modal {
+  width: min(100%, 480px);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  border: 1px solid rgb(255 255 255 / 65%);
+  border-radius: 28px;
+  background: var(--color-surface);
+  box-shadow: 0 28px 90px rgb(5 12 24 / 32%);
+  transform: translateY(12px) scale(0.98);
+  transition: transform 180ms ease;
+}
+
+.modal-overlay.is-visible .modal {
+  transform: translateY(0) scale(1);
+}
+
+.modal__content {
+  padding: clamp(28px, 6vw, 48px);
+}
+
+.victory {
+  text-align: center;
+}
+
+.victory__badge {
+  display: grid;
+  width: 76px;
+  margin: 0 auto 24px;
+  place-items: center;
+  border-radius: 24px;
+  color: white;
+  background: var(--color-blue);
+  box-shadow: 0 8px 0 rgb(22 38 67 / 16%);
+  aspect-ratio: 1;
+  font-family: Georgia, serif;
+  font-size: 2.25rem;
+}
+
+.modal__eyebrow {
+  margin: 0 0 10px;
+  color: var(--color-accent);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.modal__title {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2rem, 7vw, 3rem);
+  font-weight: 500;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+.modal__message {
+  margin: 18px auto 0;
+  color: var(--color-muted);
+  line-height: 1.65;
+}
+
+.modal__actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.modal__actions .button {
+  min-width: 120px;
+}
+
 @media (max-width: 720px) {
   .header__inner {
     min-height: 72px;
@@ -424,6 +523,23 @@ a:focus-visible {
   .card,
   .card__face {
     border-radius: 13px;
+  }
+
+  .modal-overlay {
+    padding: 12px;
+  }
+
+  .modal {
+    max-height: calc(100vh - 24px);
+    border-radius: 22px;
+  }
+
+  .modal__actions {
+    flex-direction: column;
+  }
+
+  .modal__actions .button {
+    width: 100%;
   }
 }
 

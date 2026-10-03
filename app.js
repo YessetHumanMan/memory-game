@@ -30,7 +30,13 @@ const elements = {
   pairs: null,
   hint: null,
   newGameButton: null,
+  modalOverlay: null,
+  modalDialog: null,
+  modalContent: null,
+  backgroundSections: [],
 };
+
+let previouslyFocusedElement = null;
 
 function createElement(tagName, options = {}) {
   const element = document.createElement(tagName);
@@ -216,6 +222,32 @@ function createBoard() {
   return boardSection;
 }
 
+function createModal() {
+  const overlay = createElement('div', {
+    className: 'modal-overlay',
+    attributes: { id: 'modal-overlay', 'aria-hidden': 'true', hidden: '' },
+  });
+  const dialog = createElement('div', {
+    className: 'modal',
+    attributes: {
+      role: 'dialog',
+      'aria-modal': 'true',
+      'aria-labelledby': 'modal-title',
+      tabindex: '-1',
+    },
+  });
+  const content = createElement('div', {
+    className: 'modal__content',
+    attributes: { id: 'modal-content' },
+  });
+
+  dialog.append(content);
+  overlay.append(dialog);
+  overlay.addEventListener('click', handleOverlayClick);
+
+  return overlay;
+}
+
 function createFooter() {
   const footer = createElement('footer', { className: 'footer' });
   const footerText = createElement('p', {
@@ -235,7 +267,7 @@ function createApp() {
   });
 
   main.append(createGameIntro(), createBoard());
-  app.append(createHeader(), main, createFooter());
+  app.append(createHeader(), main, createFooter(), createModal());
   document.body.append(app);
 }
 
@@ -317,6 +349,7 @@ function handleMatchingCards(firstCard, secondCard) {
   if (state.matchedPairs === TOTAL_PAIRS) {
     state.isCompleted = true;
     elements.hint.textContent = 'All pairs found!';
+    showVictoryModal();
     return;
   }
 
@@ -383,6 +416,132 @@ function handleBoardClick(event) {
   selectCard(card);
 }
 
+function setBackgroundInert(isInert) {
+  elements.backgroundSections.forEach((section) => {
+    section.inert = isInert;
+  });
+}
+
+function getModalFocusableElements() {
+  return [...elements.modalDialog.querySelectorAll(
+    'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+  )];
+}
+
+function openModal(content, initialFocusElement) {
+  previouslyFocusedElement = document.activeElement;
+  elements.modalContent.replaceChildren(content);
+  elements.modalOverlay.hidden = false;
+  elements.modalOverlay.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('modal-open');
+  setBackgroundInert(true);
+
+  window.requestAnimationFrame(() => {
+    elements.modalOverlay.classList.add('is-visible');
+    (initialFocusElement || elements.modalDialog).focus();
+  });
+}
+
+function closeModal() {
+  if (elements.modalOverlay.hidden) {
+    return;
+  }
+
+  elements.modalOverlay.classList.remove('is-visible');
+  elements.modalOverlay.hidden = true;
+  elements.modalOverlay.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('modal-open');
+  setBackgroundInert(false);
+  elements.modalContent.replaceChildren();
+
+  if (previouslyFocusedElement?.isConnected) {
+    previouslyFocusedElement.focus();
+  }
+
+  previouslyFocusedElement = null;
+}
+
+function handleOverlayClick(event) {
+  if (event.target === elements.modalOverlay) {
+    closeModal();
+  }
+}
+
+function handleModalKeydown(event) {
+  if (elements.modalOverlay.hidden) {
+    return;
+  }
+
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    closeModal();
+    return;
+  }
+
+  if (event.key !== 'Tab') {
+    return;
+  }
+
+  const focusableElements = getModalFocusableElements();
+
+  if (focusableElements.length === 0) {
+    event.preventDefault();
+    elements.modalDialog.focus();
+    return;
+  }
+
+  const firstElement = focusableElements[0];
+  const lastElement = focusableElements[focusableElements.length - 1];
+
+  if (event.shiftKey && document.activeElement === firstElement) {
+    event.preventDefault();
+    lastElement.focus();
+  } else if (!event.shiftKey && document.activeElement === lastElement) {
+    event.preventDefault();
+    firstElement.focus();
+  }
+}
+
+function createVictoryContent() {
+  const content = createElement('div', { className: 'victory' });
+  const badge = createElement('div', {
+    className: 'victory__badge',
+    text: '✦',
+    attributes: { 'aria-hidden': 'true' },
+  });
+  const eyebrow = createElement('p', {
+    className: 'modal__eyebrow',
+    text: 'Board complete',
+  });
+  const title = createElement('h2', {
+    className: 'modal__title',
+    text: 'Brilliant memory!',
+    attributes: { id: 'modal-title' },
+  });
+  const message = createElement('p', {
+    className: 'modal__message',
+    text: `You found all ${TOTAL_PAIRS} pairs in ${state.moves} moves.`,
+  });
+  const actions = createElement('div', { className: 'modal__actions' });
+  const newGameButton = createHeaderButton('New game', 'primary', 'modal-new-game');
+  const closeButton = createHeaderButton('Close', 'ghost', 'close-modal');
+
+  newGameButton.addEventListener('click', () => {
+    closeModal();
+    startGame();
+  });
+  closeButton.addEventListener('click', closeModal);
+  actions.append(newGameButton, closeButton);
+  content.append(badge, eyebrow, title, message, actions);
+
+  return { content, initialFocusElement: newGameButton };
+}
+
+function showVictoryModal() {
+  const { content, initialFocusElement } = createVictoryContent();
+  openModal(content, initialFocusElement);
+}
+
 function cancelMismatchTimer() {
   if (state.mismatchTimerId !== null) {
     window.clearTimeout(state.mismatchTimerId);
@@ -392,6 +551,7 @@ function cancelMismatchTimer() {
 
 function startGame() {
   cancelMismatchTimer();
+  closeModal();
   state.cards = createDeck();
   state.firstCardId = null;
   state.secondCardId = null;
@@ -413,7 +573,17 @@ function initializeApp() {
   elements.pairs = document.getElementById('pairs-value');
   elements.hint = document.getElementById('board-hint');
   elements.newGameButton = document.querySelector('[data-action="new-game"]');
+  elements.modalOverlay = document.getElementById('modal-overlay');
+  elements.modalDialog = elements.modalOverlay.querySelector('.modal');
+  elements.modalContent = document.getElementById('modal-content');
+  elements.backgroundSections = [
+    document.querySelector('.header'),
+    document.querySelector('.main'),
+    document.querySelector('.footer'),
+  ];
+
   elements.newGameButton.addEventListener('click', startGame);
+  document.addEventListener('keydown', handleModalKeydown);
   startGame();
 }
 
