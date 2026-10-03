@@ -58,6 +58,16 @@ a:focus-visible {
   margin-inline: auto;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .app {
   display: flex;
   min-height: 100vh;
@@ -448,6 +458,88 @@ a:focus-visible {
 
 .modal__actions .button {
   min-width: 120px;
+}
+
+.leaderboard__title {
+  font-size: clamp(2rem, 7vw, 2.7rem);
+}
+
+.leaderboard__description {
+  margin-inline: 0;
+}
+
+.leaderboard__table-wrapper {
+  overflow-x: auto;
+  margin-top: 28px;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+}
+
+.leaderboard__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.leaderboard__table th,
+.leaderboard__table td {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--color-line);
+  text-align: left;
+}
+
+.leaderboard__table thead th {
+  color: var(--color-muted);
+  background: #f6f1e8;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.leaderboard__table tbody th {
+  color: var(--color-accent);
+  font-family: Georgia, serif;
+  font-size: 1.05rem;
+}
+
+.leaderboard__table tbody td {
+  font-size: 0.9rem;
+}
+
+.leaderboard__table tr:last-child th,
+.leaderboard__table tr:last-child td {
+  border-bottom: 0;
+}
+
+.leaderboard__empty {
+  display: flex;
+  margin-top: 28px;
+  padding: 22px;
+  align-items: center;
+  gap: 16px;
+  border: 1px dashed var(--color-line);
+  border-radius: 16px;
+  background: #faf6ee;
+}
+
+.leaderboard__empty-mark {
+  display: grid;
+  width: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border-radius: 13px;
+  color: var(--color-muted);
+  background: #eee8dd;
+  font-weight: 800;
+  aspect-ratio: 1;
+}
+
+.leaderboard__empty-message {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 @media (max-width: 720px) {
