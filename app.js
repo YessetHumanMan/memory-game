@@ -29,6 +29,7 @@ const elements = {
   moves: null,
   pairs: null,
   hint: null,
+  newGameButton: null,
 };
 
 function createElement(tagName, options = {}) {
@@ -382,7 +383,15 @@ function handleBoardClick(event) {
   selectCard(card);
 }
 
+function cancelMismatchTimer() {
+  if (state.mismatchTimerId !== null) {
+    window.clearTimeout(state.mismatchTimerId);
+    state.mismatchTimerId = null;
+  }
+}
+
 function startGame() {
+  cancelMismatchTimer();
   state.cards = createDeck();
   state.firstCardId = null;
   state.secondCardId = null;
@@ -403,6 +412,8 @@ function initializeApp() {
   elements.moves = document.getElementById('moves-value');
   elements.pairs = document.getElementById('pairs-value');
   elements.hint = document.getElementById('board-hint');
+  elements.newGameButton = document.querySelector('[data-action="new-game"]');
+  elements.newGameButton.addEventListener('click', startGame);
   startGame();
 }
 
