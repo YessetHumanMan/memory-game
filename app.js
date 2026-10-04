@@ -25,6 +25,7 @@ const state = {
   isCompleted: false,
   mismatchTimerId: null,
   resultSaved: false,
+  gameId: 0,
 };
 
 const elements = {
@@ -41,6 +42,7 @@ const elements = {
 };
 
 let previouslyFocusedElement = null;
+let modalAnimationFrameId = null;
 
 function createElement(tagName, options = {}) {
   const element = document.createElement(tagName);
@@ -199,6 +201,7 @@ function createCard(cardData, index) {
   front.append(cardImage);
   cardInner.append(back, front);
   card.append(cardInner);
+  card.disabled = isCardUnavailable(cardData);
 
   return card;
 }
@@ -321,6 +324,10 @@ function renderBoard() {
   elements.board.replaceChildren(...cardElements);
 }
 
+function isCardUnavailable(card) {
+  return card.status !== 'hidden' || state.isLocked || state.isCompleted;
+}
+
 function updateCard(cardId) {
   const cardIndex = state.cards.findIndex((card) => card.id === cardId);
   const card = state.cards[cardIndex];
@@ -333,6 +340,17 @@ function updateCard(cardId) {
   cardElement.classList.toggle('is-open', card.status === 'open');
   cardElement.classList.toggle('is-matched', card.status === 'matched');
   cardElement.setAttribute('aria-label', getCardLabel(card, cardIndex));
+  cardElement.disabled = isCardUnavailable(card);
+}
+
+function updateCardAvailability() {
+  state.cards.forEach((card) => {
+    const cardElement = elements.board.querySelector(`[data-card-id="${card.id}"]`);
+
+    if (cardElement) {
+      cardElement.disabled = isCardUnavailable(card);
+    }
+  });
 }
 
 function updateCounters() {
@@ -357,26 +375,34 @@ function handleMatchingCards(firstCard, secondCard) {
 
   if (state.matchedPairs === TOTAL_PAIRS) {
     state.isCompleted = true;
+    updateCardAvailability();
     elements.hint.textContent = 'All pairs found!';
     saveCompletedGame();
     showVictoryModal();
     return;
   }
 
+  updateCardAvailability();
   elements.hint.textContent = 'Pair found — keep going';
 }
 
 function handleMismatchedCards(firstCard, secondCard) {
+  const currentGameId = state.gameId;
   elements.hint.textContent = 'Not a match — remember their places';
 
   state.mismatchTimerId = window.setTimeout(() => {
+    if (currentGameId !== state.gameId) {
+      return;
+    }
+
     firstCard.status = 'hidden';
     secondCard.status = 'hidden';
-    updateCard(firstCard.id);
-    updateCard(secondCard.id);
     resetSelection();
     state.isLocked = false;
     state.mismatchTimerId = null;
+    updateCard(firstCard.id);
+    updateCard(secondCard.id);
+    updateCardAvailability();
     elements.hint.textContent = 'Select two cards';
   }, MISMATCH_DELAY);
 }
@@ -395,6 +421,7 @@ function selectCard(card) {
   state.moves += 1;
   state.isLocked = true;
   updateCounters();
+  updateCardAvailability();
 
   const firstCard = state.cards.find(({ id }) => id === state.firstCardId);
 
@@ -439,14 +466,27 @@ function getModalFocusableElements() {
 }
 
 function openModal(content, initialFocusElement) {
-  previouslyFocusedElement = document.activeElement;
+  if (elements.modalOverlay.hidden) {
+    previouslyFocusedElement = document.activeElement;
+  }
+
+  if (modalAnimationFrameId !== null) {
+    window.cancelAnimationFrame(modalAnimationFrameId);
+  }
+
   elements.modalContent.replaceChildren(content);
   elements.modalOverlay.hidden = false;
   elements.modalOverlay.setAttribute('aria-hidden', 'false');
   document.body.classList.add('modal-open');
   setBackgroundInert(true);
 
-  window.requestAnimationFrame(() => {
+  modalAnimationFrameId = window.requestAnimationFrame(() => {
+    modalAnimationFrameId = null;
+
+    if (elements.modalOverlay.hidden) {
+      return;
+    }
+
     elements.modalOverlay.classList.add('is-visible');
     (initialFocusElement || elements.modalDialog).focus();
   });
@@ -457,6 +497,11 @@ function closeModal() {
     return;
   }
 
+  if (modalAnimationFrameId !== null) {
+    window.cancelAnimationFrame(modalAnimationFrameId);
+    modalAnimationFrameId = null;
+  }
+
   elements.modalOverlay.classList.remove('is-visible');
   elements.modalOverlay.hidden = true;
   elements.modalOverlay.setAttribute('aria-hidden', 'true');
@@ -464,10 +509,13 @@ function closeModal() {
   setBackgroundInert(false);
   elements.modalContent.replaceChildren();
 
-  if (previouslyFocusedElement?.isConnected) {
-    previouslyFocusedElement.focus();
-  }
+  const canRestorePreviousFocus = previouslyFocusedElement?.isConnected
+    && !previouslyFocusedElement.disabled;
+  const focusTarget = canRestorePreviousFocus
+    ? previouslyFocusedElement
+    : elements.newGameButton;
 
+  focusTarget?.focus();
   previouslyFocusedElement = null;
 }
 
@@ -503,10 +551,18 @@ function handleModalKeydown(event) {
   const firstElement = focusableElements[0];
   const lastElement = focusableElements[focusableElements.length - 1];
 
-  if (event.shiftKey && document.activeElement === firstElement) {
+  const activeElement = document.activeElement;
+
+  if (!elements.modalDialog.contains(activeElement)) {
+    event.preventDefault();
+    firstElement.focus();
+  } else if (
+    event.shiftKey
+    && (activeElement === firstElement || activeElement === elements.modalDialog)
+  ) {
     event.preventDefault();
     lastElement.focus();
-  } else if (!event.shiftKey && document.activeElement === lastElement) {
+  } else if (!event.shiftKey && activeElement === lastElement) {
     event.preventDefault();
     firstElement.focus();
   }
@@ -557,7 +613,8 @@ function isValidResult(result) {
     && Number.isInteger(result.moves)
     && result.moves > 0
     && Number.isFinite(result.completedAt)
-    && result.completedAt > 0;
+    && result.completedAt > 0
+    && !Number.isNaN(new Date(result.completedAt).getTime());
 }
 
 function sortResults(results) {
@@ -715,6 +772,7 @@ function cancelMismatchTimer() {
 function startGame() {
   cancelMismatchTimer();
   closeModal();
+  state.gameId += 1;
   state.cards = createDeck();
   state.firstCardId = null;
   state.secondCardId = null;

@@ -285,18 +285,17 @@ a:focus-visible {
   transition: transform 420ms cubic-bezier(0.2, 0.75, 0.25, 1);
 }
 
-.card:hover .card__inner {
+.card:not(:disabled):hover .card__inner {
   transform: translateY(-4px);
+}
+
+.card:disabled {
+  cursor: default;
 }
 
 .card.is-open .card__inner,
 .card.is-matched .card__inner {
   transform: rotateY(180deg);
-}
-
-.card.is-open:hover .card__inner,
-.card.is-matched:hover .card__inner {
-  transform: rotateY(180deg) translateY(-4px);
 }
 
 .card__face {
